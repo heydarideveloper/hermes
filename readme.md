@@ -26,7 +26,7 @@ Hermes exposes an object named `hermes` which contains the API methods.
 
     -   `topic`: The name of the topic in which the data will be sent to.
     -   `data`: The data to be sent. This needs to be a JSON-serializable object.
-    -   `type` (optional, default='all'): A boolean indicating whether the data should also be sent to the current tab.
+    -   `type` (optional, default='all'): A enum indicating whether the data should also be sent to the current tab.
 
     ```js
     hermes.send("some-topic", "hello world");
