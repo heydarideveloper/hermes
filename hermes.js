@@ -1,5 +1,5 @@
-(function(global, factory) {
-    if (typeof define === 'function' && define.amd) {
+(function (global, factory) {
+    if (typeof define === "function" && define.amd) {
         define([], factory);
     } else {
         global.hermes = factory();
@@ -16,11 +16,14 @@
 
     function off(topic, callback) {
         if (topic in callbacks) {
-            if (typeof callback === 'function') {
+            if (typeof callback === "function") {
                 const index = callbacks[topic].indexOf(callback);
                 callbacks[topic].splice(index, 1);
             }
-            if (typeof callback !== 'function' || callbacks[topic].length === 0) {
+            if (
+                typeof callback !== "function" ||
+                callbacks[topic].length === 0
+            ) {
                 delete callbacks[topic];
             }
         }
@@ -28,7 +31,7 @@
 
     function broadcast(topic, data) {
         if (topic in callbacks) {
-            callbacks[topic].forEach(callback => callback(data));
+            callbacks[topic].forEach((callback) => callback(data));
         }
     }
 
@@ -42,17 +45,19 @@
          *  Support table for BroadcastChannel: http://caniuse.com/#feat=broadcastchannel
          */
 
-        const channel = new BroadcastChannel('hermes');
-        channel.onmessage = e => broadcast(e.data.topic, e.data.data);
+        const channel = new BroadcastChannel("hermes");
+        channel.onmessage = (e) => broadcast(e.data.topic, e.data.data);
 
-        function send(topic, data, includeSelf=false) {
-            channel.postMessage({topic, data});
+        function send(topic, data, includeSelf = false, includeOthers = true) {
+            if (includeOthers) {
+                channel.postMessage({ topic, data });
+            }
             if (includeSelf) {
                 broadcast(topic, data);
             }
         }
 
-        return {on, off, send};
+        return { on, off, send };
     }
 
     function sharedWorkerApiFactory() {
@@ -70,22 +75,26 @@
         const selector = '[src$="hermes.js"],[src$="hermes.min.js"]';
         const script = document.querySelector(selector);
         const scriptUrl = new URL(script.src);
-        const workerPath = scriptUrl.pathname
-            .replace(/hermes(\.min)?\.js/, 'hermes-worker$1.js');
+        const workerPath = scriptUrl.pathname.replace(
+            /hermes(\.min)?\.js/,
+            "hermes-worker$1.js"
+        );
 
-        const worker = new SharedWorker(workerPath, 'hermes');
+        const worker = new SharedWorker(workerPath, "hermes");
 
         worker.port.start();
-        worker.port.onmessage = e => broadcast(e.data.topic, e.data.data);
+        worker.port.onmessage = (e) => broadcast(e.data.topic, e.data.data);
 
-        function send(topic, data, includeSelf=false) {
-            worker.port.postMessage({topic, data});
+        function send(topic, data, includeSelf = false, includeOthers = true) {
+            if (includeOthers) {
+                worker.port.postMessage({ topic, data });
+            }
             if (includeSelf) {
                 broadcast(topic, data);
             }
         }
 
-        return {on, off, send};
+        return { on, off, send };
     }
 
     function localStorageApiFactory() {
@@ -99,14 +108,17 @@
          */
 
         const storage = window.localStorage;
-        const prefix = '__hermes:';
+        const prefix = "__hermes:";
         const queue = {};
 
-        function send(topic, data, includeSelf=false) {
+        function send(topic, data, includeSelf = false, includeOthers = true) {
             const key = prefix + topic;
+
             if (storage.getItem(key) === null) {
-                storage.setItem(key, JSON.stringify(data));
-                storage.removeItem(key);
+                if (includeOthers) {
+                    storage.setItem(key, JSON.stringify(data));
+                    storage.removeItem(key);
+                }
                 if (includeSelf) {
                     broadcast(topic, data);
                 }
@@ -119,26 +131,30 @@
                  * NOTE: This could just be trying to solve a problem that is
                  * very unlikely to occur.
                  */
-                if (!((key) in queue)) {
+                if (!(key in queue)) {
                     queue[key] = [];
                 }
                 queue[key].push(data);
             }
         }
 
-        window.addEventListener('storage', e => {
-            if (!e.key) { return; }
+        window.addEventListener("storage", (e) => {
+            if (!e.key) {
+                return;
+            }
             if (e.key.indexOf(prefix) === 0 && e.oldValue === null) {
-                const topic = e.key.replace(prefix, '');
+                const topic = e.key.replace(prefix, "");
                 const data = JSON.parse(e.newValue);
                 broadcast(topic, data);
             }
         });
 
-        window.addEventListener('storage', e => {
-            if (!e.key) { return; }
+        window.addEventListener("storage", (e) => {
+            if (!e.key) {
+                return;
+            }
             if (e.key.indexOf(prefix) === 0 && e.newValue === null) {
-                const topic = e.key.replace(prefix, '');
+                const topic = e.key.replace(prefix, "");
                 if (topic in queue) {
                     send(topic, queue[topic].shift());
                     if (queue[topic].length === 0) {
@@ -148,7 +164,7 @@
             }
         });
 
-        return {on, off, send};
+        return { on, off, send };
     }
 
     function emptyApiFactory() {
@@ -159,17 +175,17 @@
          */
 
         function noop() {
-            console.warn('Hermes messaging is not supported.');
+            console.warn("Hermes messaging is not supported.");
         }
 
-        return {on: noop, off: noop, send: noop};
+        return { on: noop, off: noop, send: noop };
     }
 
-    if ('BroadcastChannel' in window) {
+    if ("BroadcastChannel" in window) {
         return broadcastChannelApiFactory();
-    } else if ('SharedWorker' in window) {
+    } else if ("SharedWorker" in window) {
         return sharedWorkerApiFactory();
-    } else if ('localStorage' in window) {
+    } else if ("localStorage" in window) {
         return localStorageApiFactory();
     }
     return emptyApiFactory();
