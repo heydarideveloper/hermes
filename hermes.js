@@ -47,14 +47,21 @@
 
         const channel = new BroadcastChannel("hermes");
         channel.onmessage = (e) => broadcast(e.data.topic, e.data.data);
-
-        function send(topic, data, includeSelf = false, includeOthers = true) {
-            if (includeOthers) {
-                channel.postMessage({ topic, data });
-            }
-            if (includeSelf) {
+        /**
+         *
+         * @param {any} topic
+         * @param {any} data
+         * @param {('all'|'justme'|'justOthers')} type
+         */
+        function send(topic, data, type = "all") {
+            if (type.includes("all")) {
+                worker.port.postMessage({ topic, data });
                 broadcast(topic, data);
             }
+            if (type.includes("justme")) broadcast(topic, data);
+
+            if (type.includes("justOthers"))
+                worker.port.postMessage({ topic, data });
         }
 
         return { on, off, send };
@@ -84,14 +91,21 @@
 
         worker.port.start();
         worker.port.onmessage = (e) => broadcast(e.data.topic, e.data.data);
-
-        function send(topic, data, includeSelf = false, includeOthers = true) {
-            if (includeOthers) {
+        /**
+         *
+         * @param {any} topic
+         * @param {any} data
+         * @param {('all'|'justme'|'justOthers')} type
+         */
+        function send(topic, data, type = "all") {
+            if (type.includes("all")) {
                 worker.port.postMessage({ topic, data });
-            }
-            if (includeSelf) {
                 broadcast(topic, data);
             }
+            if (type.includes("justme")) broadcast(topic, data);
+
+            if (type.includes("justOthers"))
+                worker.port.postMessage({ topic, data });
         }
 
         return { on, off, send };
@@ -110,18 +124,24 @@
         const storage = window.localStorage;
         const prefix = "__hermes:";
         const queue = {};
-
-        function send(topic, data, includeSelf = false, includeOthers = true) {
+        /**
+         *
+         * @param {any} topic
+         * @param {any} data
+         * @param {('all'|'justme'|'justOthers')} type
+         */
+        function send(topic, data, type = "all") {
             const key = prefix + topic;
 
             if (storage.getItem(key) === null) {
-                if (includeOthers) {
-                    storage.setItem(key, JSON.stringify(data));
-                    storage.removeItem(key);
-                }
-                if (includeSelf) {
+                if (type.includes("all")) {
+                    worker.port.postMessage({ topic, data });
                     broadcast(topic, data);
                 }
+                if (type.includes("justme")) broadcast(topic, data);
+
+                if (type.includes("justOthers"))
+                    worker.port.postMessage({ topic, data });
             } else {
                 /*
                  * The queueing system ensures that multiple calls to the send
