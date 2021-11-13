@@ -55,13 +55,13 @@
          */
         function send(topic, data, type = "all") {
             if (type.includes("all")) {
-                worker.port.postMessage({ topic, data });
+               channel.postMessage({ topic, data });
                 broadcast(topic, data);
             }
             if (type.includes("justme")) broadcast(topic, data);
 
             if (type.includes("justOthers"))
-                worker.port.postMessage({ topic, data });
+                channel.postMessage({ topic, data });
         }
 
         return { on, off, send };
