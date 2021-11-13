@@ -135,13 +135,16 @@
 
             if (storage.getItem(key) === null) {
                 if (type.includes("all")) {
-                    worker.port.postMessage({ topic, data });
+                    storage.setItem(key, JSON.stringify(data));
+                    storage.removeItem(key);
                     broadcast(topic, data);
                 }
                 if (type.includes("justme")) broadcast(topic, data);
 
-                if (type.includes("justOthers"))
-                    worker.port.postMessage({ topic, data });
+                if (type.includes("justOthers")) {
+                    storage.setItem(key, JSON.stringify(data));
+                    storage.removeItem(key);
+                }
             } else {
                 /*
                  * The queueing system ensures that multiple calls to the send
