@@ -45,17 +45,15 @@
          *  Support table for BroadcastChannel: http://caniuse.com/#feat=broadcastchannel
          */
 
-        const channel = new BroadcastChannel("hermes");
-        channel.onmessage = (e) => broadcast(e.data.topic, e.data.data);
-        /**
-         *
-         * @param {any} topic
-         * @param {any} data
-         * @param {('all'|'justme'|'justOthers')} type
-         */
-        function send(topic, data, type = "all") {
-            if (type.includes("all")) {
-               channel.postMessage({ topic, data });
+        const channel = new BroadcastChannel('hermes');
+        channel.onmessage = e => broadcast(e.data.topic, e.data.data);
+
+        function send(topic, data, target = 'other') {
+            if (target === 'all' || target === 'other') {
+                channel.postMessage({topic, data});
+            }
+
+            if (target === 'all' || target === 'current') {
                 broadcast(topic, data);
             }
             if (type.includes("justme")) broadcast(topic, data);
@@ -90,16 +88,14 @@
         const worker = new SharedWorker(workerPath, "hermes");
 
         worker.port.start();
-        worker.port.onmessage = (e) => broadcast(e.data.topic, e.data.data);
-        /**
-         *
-         * @param {any} topic
-         * @param {any} data
-         * @param {('all'|'justme'|'justOthers')} type
-         */
-        function send(topic, data, type = "all") {
-            if (type.includes("all")) {
-                worker.port.postMessage({ topic, data });
+        worker.port.onmessage = e => broadcast(e.data.topic, e.data.data);
+
+        function send(topic, data, target = 'other') {
+            if (target === 'all' || target === 'other') {
+                worker.port.postMessage({topic, data});
+            }
+
+            if (target === 'all' || target === 'current') {
                 broadcast(topic, data);
             }
             if (type.includes("justme")) broadcast(topic, data);
@@ -124,19 +120,16 @@
         const storage = window.localStorage;
         const prefix = "__hermes:";
         const queue = {};
-        /**
-         *
-         * @param {any} topic
-         * @param {any} data
-         * @param {('all'|'justme'|'justOthers')} type
-         */
-        function send(topic, data, type = "all") {
-            const key = prefix + topic;
 
-            if (storage.getItem(key) === null) {
-                if (type.includes("all")) {
+        function send(topic, data, target= 'other') {
+            const key = prefix + topic;
+            if (storage.getItem(key) === null || storage.getItem(key) === '') {
+                if (target === 'all' || target === 'other') {
                     storage.setItem(key, JSON.stringify(data));
                     storage.removeItem(key);
+                }
+
+                if (target === 'all' || target === 'current') {
                     broadcast(topic, data);
                 }
                 if (type.includes("justme")) broadcast(topic, data);
@@ -161,23 +154,19 @@
             }
         }
 
-        window.addEventListener("storage", (e) => {
-            if (!e.key) {
-                return;
-            }
-            if (e.key.indexOf(prefix) === 0 && e.oldValue === null) {
-                const topic = e.key.replace(prefix, "");
+        window.addEventListener('storage', e => {
+            if (!e.key) { return; }
+            if (e.key.indexOf(prefix) === 0 && (e.oldValue === null || e.oldValue === '')) {
+                const topic = e.key.replace(prefix, '');
                 const data = JSON.parse(e.newValue);
                 broadcast(topic, data);
             }
         });
 
-        window.addEventListener("storage", (e) => {
-            if (!e.key) {
-                return;
-            }
-            if (e.key.indexOf(prefix) === 0 && e.newValue === null) {
-                const topic = e.key.replace(prefix, "");
+        window.addEventListener('storage', e => {
+            if (!e.key) { return; }
+            if (e.key.indexOf(prefix) === 0 && (e.newValue === null || e.newValue === '')) {
+                const topic = e.key.replace(prefix, '');
                 if (topic in queue) {
                     send(topic, queue[topic].shift());
                     if (queue[topic].length === 0) {
